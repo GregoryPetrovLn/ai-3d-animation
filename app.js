@@ -3,6 +3,11 @@ const VIDEO_URL = "./headphones.mp4";
 const canvas = document.querySelector("#webgl-canvas");
 const fallbackVideo = document.querySelector("#fallback-video");
 const hero = document.querySelector(".hero");
+const scrollSpace = document.querySelector(".scroll-space");
+const workflowSection = document.querySelector(".workflow-builder");
+const workflowGrid = document.querySelector(".workflow-grid");
+const useCasesSection = document.querySelector(".use-cases");
+const useCasesInner = document.querySelector(".use-cases-inner");
 
 let scene = null;
 let camera = null;
@@ -68,6 +73,15 @@ const HERO_PARALLAX_PX = 22;
 let lastFrameTimeMs = performance.now();
 let lastSeekAtMs = 0;
 
+function clamp01(value) {
+  return Math.min(Math.max(value, 0), 1);
+}
+
+function smoothstep(edge0, edge1, value) {
+  const t = clamp01((value - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+}
+
 function fitVideoToViewport() {
   if (!threeReady) {
     return;
@@ -90,9 +104,9 @@ function fitVideoToViewport() {
 }
 
 function updateTargetTimeFromScroll() {
-  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-  const scrollY = Math.min(Math.max(window.scrollY, 0), maxScroll);
-  const rawProgress = scrollY / maxScroll;
+  const animationScrollRange = Math.max((scrollSpace ? scrollSpace.offsetHeight : window.innerHeight) - window.innerHeight, 1);
+  const clampedScroll = Math.min(Math.max(window.scrollY, 0), animationScrollRange);
+  const rawProgress = clampedScroll / animationScrollRange;
   // Boost early response: tiny scroll moves first frames sooner.
   const progress = Math.pow(rawProgress, SCROLL_EARLY_BOOST_POWER);
   const playableDuration = duration * SCROLL_SPEED_FACTOR;
@@ -102,6 +116,32 @@ function updateTargetTimeFromScroll() {
     const parallaxOffset = rawProgress * HERO_PARALLAX_PX;
     hero.style.transform = `translateY(calc(-50% + ${parallaxOffset.toFixed(2)}px))`;
   }
+
+  updateSectionTransition();
+}
+
+function updateSectionTransition() {
+  if (!workflowSection || !useCasesSection || !useCasesInner) {
+    return;
+  }
+
+  const viewportHeight = window.innerHeight;
+  const transitionStart = useCasesSection.offsetTop - viewportHeight;
+  const transitionRange = Math.max(viewportHeight * 0.9, 1);
+  const transitionProgress = clamp01((window.scrollY - transitionStart) / transitionRange);
+  const easedProgress = smoothstep(0, 1, transitionProgress);
+
+  workflowSection.style.opacity = "1";
+  workflowSection.style.transform = "none";
+
+  if (workflowGrid) {
+    const innerEase = smoothstep(0.05, 1, transitionProgress);
+    workflowGrid.style.opacity = `${1 - innerEase}`;
+    workflowGrid.style.transform = `translate3d(0, ${(18 * innerEase).toFixed(2)}px, 0)`;
+  }
+
+  useCasesInner.style.opacity = `${easedProgress}`;
+  useCasesInner.style.transform = `translate3d(0, ${(42 - 42 * easedProgress).toFixed(2)}px, 0)`;
 }
 
 fallbackVideo.addEventListener("loadedmetadata", () => {
@@ -144,6 +184,7 @@ window.addEventListener("resize", () => {
   }
   fitVideoToViewport();
   updateTargetTimeFromScroll();
+  updateSectionTransition();
 });
 
 function animate() {
@@ -178,4 +219,5 @@ function animate() {
 
 fallbackVideo.load();
 unlockVideoDecoding();
+updateSectionTransition();
 animate();
