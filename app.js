@@ -1,8 +1,8 @@
-const VIDEO_URL =
-  "https://r2.syntx.ai/user_8941760239158877405/generated/809f2ca238fa82a2902f1b22aa210a05_84bc23ff-550d-4838-9cb3-54177b8d8774.mp4";
+const VIDEO_URL = "./headphones.mp4";
 
 const canvas = document.querySelector("#webgl-canvas");
 const fallbackVideo = document.querySelector("#fallback-video");
+const hero = document.querySelector(".hero");
 
 let scene = null;
 let camera = null;
@@ -11,7 +11,6 @@ let plane = null;
 let videoTexture = null;
 let threeReady = false;
 
-fallbackVideo.crossOrigin = "anonymous";
 fallbackVideo.src = VIDEO_URL;
 fallbackVideo.muted = true;
 fallbackVideo.playsInline = true;
@@ -47,6 +46,7 @@ if (window.THREE && canvas) {
     scene.add(plane);
 
     threeReady = true;
+    document.body.classList.add("three-ready");
   } catch (_error) {
     threeReady = false;
   }
@@ -59,8 +59,14 @@ let canScrub = false;
 const SCROLL_SPEED_FACTOR = 0.6;
 const SMOOTHING_RESPONSE = 12;
 const MAX_SEEK_SPEED = 2.4;
-const SEEK_EPSILON = 1 / 120;
+const SEEK_EPSILON = 1 / 600;
+const FRAME_RATE_HINT = 30;
+const FRAME_STEP = 1 / FRAME_RATE_HINT;
+const SEEK_INTERVAL_MS = 1000 / 30;
+const SCROLL_EARLY_BOOST_POWER = 0.72;
+const HERO_PARALLAX_PX = 22;
 let lastFrameTimeMs = performance.now();
+let lastSeekAtMs = 0;
 
 function fitVideoToViewport() {
   if (!threeReady) {
@@ -86,9 +92,16 @@ function fitVideoToViewport() {
 function updateTargetTimeFromScroll() {
   const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
   const scrollY = Math.min(Math.max(window.scrollY, 0), maxScroll);
-  const progress = scrollY / maxScroll;
+  const rawProgress = scrollY / maxScroll;
+  // Boost early response: tiny scroll moves first frames sooner.
+  const progress = Math.pow(rawProgress, SCROLL_EARLY_BOOST_POWER);
   const playableDuration = duration * SCROLL_SPEED_FACTOR;
   targetTime = progress * playableDuration;
+
+  if (hero) {
+    const parallaxOffset = rawProgress * HERO_PARALLAX_PX;
+    hero.style.transform = `translateY(calc(-50% + ${parallaxOffset.toFixed(2)}px))`;
+  }
 }
 
 fallbackVideo.addEventListener("loadedmetadata", () => {
@@ -146,8 +159,16 @@ function animate() {
   const step = Math.max(Math.min(smoothedTarget - displayedTime, maxStep), -maxStep);
   displayedTime += step;
 
-  if (Math.abs(fallbackVideo.currentTime - displayedTime) > SEEK_EPSILON) {
-    fallbackVideo.currentTime = displayedTime;
+  const quantizedTime = Math.round(displayedTime / FRAME_STEP) * FRAME_STEP;
+  const shouldSeekNow =
+    nowMs - lastSeekAtMs >= SEEK_INTERVAL_MS ||
+    Math.abs(fallbackVideo.currentTime - quantizedTime) > FRAME_STEP * 1.5;
+
+  if (shouldSeekNow) {
+    if (Math.abs(fallbackVideo.currentTime - quantizedTime) > SEEK_EPSILON) {
+      fallbackVideo.currentTime = Math.max(0, Math.min(quantizedTime, duration));
+    }
+    lastSeekAtMs = nowMs;
   }
 
   if (threeReady) {
