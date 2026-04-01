@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scroll Driven Frame Animation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1>Scroll to Animate the Future</h1>
+        <p>Move down to play forward, up to reverse.</p>
+      </section>
+
+      <video
+        id="fallback-video"
+        class="fallback-video"
+        muted
+        playsinline
+        preload="auto"
+        aria-label="Scroll-driven video"
+      ></video>
+
+      <section class="canvas-stage">
+        <canvas id="webgl-canvas" aria-label="Scroll-driven animation"></canvas>
+      </section>
+
+      <section class="scroll-space" aria-hidden="true"></section>
+    </main>
+
+    <script src="https://unpkg.com/three@0.164.1/build/three.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
