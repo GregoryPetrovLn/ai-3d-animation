@@ -70,6 +70,7 @@ const FRAME_STEP = 1 / FRAME_RATE_HINT;
 const SEEK_INTERVAL_MS = 1000 / 30;
 const SCROLL_EARLY_BOOST_POWER = 0.72;
 const HERO_PARALLAX_PX = 22;
+const MOBILE_BREAKPOINT_PX = 620;
 let lastFrameTimeMs = performance.now();
 let lastSeekAtMs = 0;
 
@@ -80,6 +81,20 @@ function clamp01(value) {
 function smoothstep(edge0, edge1, value) {
   const t = clamp01((value - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
+}
+
+function updateHeroParallax(rawProgress) {
+  if (!hero) {
+    return;
+  }
+
+  const parallaxOffset = rawProgress * HERO_PARALLAX_PX;
+  if (window.innerWidth <= MOBILE_BREAKPOINT_PX) {
+    hero.style.transform = `translate3d(0, ${parallaxOffset.toFixed(2)}px, 0)`;
+    return;
+  }
+
+  hero.style.transform = `translateY(calc(-50% + ${parallaxOffset.toFixed(2)}px))`;
 }
 
 function fitVideoToViewport() {
@@ -112,10 +127,7 @@ function updateTargetTimeFromScroll() {
   const playableDuration = duration * SCROLL_SPEED_FACTOR;
   targetTime = progress * playableDuration;
 
-  if (hero) {
-    const parallaxOffset = rawProgress * HERO_PARALLAX_PX;
-    hero.style.transform = `translateY(calc(-50% + ${parallaxOffset.toFixed(2)}px))`;
-  }
+  updateHeroParallax(rawProgress);
 
   updateSectionTransition();
 }
